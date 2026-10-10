@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Naija Hustle Sim</title>
+    <style>
+        :root {
+            --app-bg: #0b0f19;
+            --panel-bg: #161c2e;
+            --primary-green: #00b074;
+            --accent-yellow: #f4b400;
+            --border-color: #242c42;
+        }
+        body { 
+            background-color: var(--app-bg); 
+            color: #f1f5f9; 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            min-height: 100vh; 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            display: flex; 
+            flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* Top HUD Overlay Panel */
+        .top-navbar {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            background: rgba(22, 28, 46, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            padding: 10px 16px;
+            border-radius: 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+        .stats-left { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+        .status-pill { background: rgba(0, 176, 116, 0.15); color: var(--primary-green); padding: 4px 10px; border-radius: 20px; font-size: 11px; }
+        .cash-container { display: flex; align-items: center; gap: 6px; }
+        .cash-value { font-family: monospace; font-weight: 900; color: #ffffff; font-size: 16px; }
+
+        /* Render Canvas (The 3D Isometric Viewport) */
+        .canvas-viewport { 
+            flex: 1; 
+            width: 100vw; 
+            height: 100vh;
+            background: linear-gradient(180deg, #101626 0%, #070a12 100%);
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            position: relative;
+        }
+        #gameCanvas { display: block; max-width: 100%; max-height: 100%; }
+
+        /* Custom Bottom Navigation Bar Control Layer */
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            color: #1e293b;
+            border-top-left-radius: 24px;
+            border-top-right-radius: 24px;
+            padding: 10px 20px 24px 20px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 90;
+            box-shadow: 0 -10px 25px rgba(0,0,0,0.3);
+        }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: #64748b; cursor: pointer; }
+        .nav-item.active { color: #0f172a; }
+        .nav-icon { font-size: 20px; }
+
+        /* Catalogue Sheet Panel (Rises smoothly from the bottom) */
+        .catalogue-panel {
+            position: absolute;
+            bottom: -400px;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            color: #0f172a;
+            border-top-left-radius: 24px;
+            border-top-right-radius: 24px;
+            padding: 16px;
+            z-index: 110;
+            transition: bottom 0.3s cubic-bezier(0.1, 0.76, 0.55, 0.94);
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.25);
+        }
+        .catalogue-panel.open { bottom: 0; }
+        .cat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .cat-title { font-size: 18px; font-weight: 800; }
+        .cat-hide-btn { font-size: 13px; font-weight: 700; color: #64748b; cursor: pointer; }
+        
+        .cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-height: 220px; overflow-y: auto; }
+        .product-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px; display: flex; flex-direction: column; cursor: pointer; }
+        .prod-title { font-size: 12px; font-weight: 700; color: #334155; }
+        .prod-price { font-size: 13px; font-weight: 800; color: var(--primary-green); font-family: monospace; }
+        .prod-preview { height: 50px; display: flex; align-items: center; justify-content: center; font-size: 28px; margin-top: 4px; }
+
+        /* Floating Smartphone Overlay Layout */
+        .phone-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            z-index: 150;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .phone-modal.open { opacity: 1; pointer-events: auto; }
+        .phone-device {
+            width: 280px;
+            height: 520px;
+            background: linear-gradient(135deg, #1e2640 0%, #0b0f19 100%);
+            border-radius: 36px;
+            border: 8px solid #242c42;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+            box-sizing: border-box;
+        }
+        .phone-header { display: flex; justify-content: space-between; padding: 4px 8px; font-size: 11px; font-weight: 700; color: white; }
+        .phone-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 20px 4px; }
+        .app-icon-wrapper { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
+        .app-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        .app-label { font-size: 10px; color: white; font-weight: 600; text-align: center; }
+        .phone-close-btn { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; color: #0f172a; font-weight: bold; border-radius: 20px; padding: 6px 16px; font-size: 12px; border: none; cursor: pointer; }
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+    <!-- HUD OVERLAY PANEL -->
+    <div class="top-navbar">
+        <div class="stats-left">
+            <span>🕒 12:17 AM</span>
+            <span class="status-pill">😊 Very Happy</span>
+        </div>
+        <div class="cash-container">
+            <span class="cash-value">₦<span id="ui-cash">101,499,850</span></span>
+        </div>
+    </div>
+
+    <!-- MAIN VIEWPORT GRID STAGE CANVAS -->
+    <div class="canvas-viewport">
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+    </div>
+
+    <!-- BOTTOM NAVIGATION CONTROL BAR -->
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="togglePhone(false); toggleCatalogue(false);">
+            <div class="nav-icon">🏠</div>
+            <span>Home</span>
+        </div>
+        <div class="nav-item" onclick="toggleCatalogue(true)">
+            <div class="nav-icon">🛒</div>
+            <span>Buy</span>
+        </div>
+        <div class="nav-item" onclick="alert('Loading Regional Map Layer...')">
+            <div class="nav-icon">🗺️</div>
+            <span>Map</span>
+        </div>
+        <div class="nav-item" onclick="togglePhone(true)">
+            <div class="nav-icon">📱</div>
+            <span>Phone</span>
+        </div>
+    </div>
+
+    <!-- FURNITURE CATALOGUE SLIDEOVER PANEL -->
+    <div id="catalogue" class="catalogue-panel">
+        <div class="cat-header">
+            <span class="cat-title">Catalogue</span>
+            <span class="cat-hide-btn" onclick="toggleCatalogue(false)">Hide</span>
+        </div>
+        <div class="cat-grid">
+            <div class="product-card" onclick="selectItem('fan', 18500, '🌀')">
+                <span class="prod-title">Standing Fan</span>
+                <span class="prod-price">₦18,500</span>
+                <div class="prod-preview">🌀</div>
+            </div>
+            <div class="product-card" onclick="selectItem('sofa', 24000, '🛋️')">
+                <span class="prod-title">Family Sofa</span>
+                <span class="prod-price">₦24,000</span>
+                <div class="prod-preview">🛋️</div>
+            </div>
+            <div class="product-card" onclick="selectItem('leather_sofa', 32000, '🦼')">
+                <span class="prod-title">Leather Sofa</span>
+                <span class="prod-price">₦32,000</span>
+                <div class="prod-preview">🦼</div>
+            </div>
+            <div class="product-card" onclick="selectItem('ac', 650000, '❄️')">
+                <span class="prod-title">Split AC</span>
+                <span class="prod-price">₦650,000</span>
+                <div class="prod-preview">❄️</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FLOATING SMARTPHONE DEVICE MODAL -->
+    <div id="phone-modal" class="phone-modal">
+        <div class="phone-device">
+            <div class="phone-header">
+                <span>12:17 AM</span>
+                <span>📶 4G [🔋 35%]</span>
+            </div>
+            <div class="phone-grid">
+                <div class="app-icon-wrapper" onclick="alert('Opening Jobs...')">
+                    <div class="app-icon" style="background: #9a3412;">💼</div>
+                    <span class="app-label">Jobs</span>
+                </div>
+                <div class="app-icon-wrapper" onclick="alert('Opening Chowdeck...')">
+                    <div class="app-icon" style="background: #ea580c;">🛵</div>
+                    <span class="app-label">Chowdeck</span>
+                </div>
